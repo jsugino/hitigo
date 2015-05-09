@@ -38,7 +38,7 @@
 	  <archive>
 	    <manifest>
 	      <!-- main method name has to be specified -->
-	      <mainClass>mylib.kakeibo.CrawlerMain</mainClass>
+	      <mainClass>mylib.hitigo.CreateMain</mainClass>
 	    </manifest>
 	  </archive>
 	</configuration>
@@ -66,6 +66,21 @@
       <artifactId>junit</artifactId>
       <version>4.11</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>commons-net</groupId>
+      <artifactId>commons-net</artifactId>
+      <version>3.3</version>
+    </dependency>
+    <dependency>
+      <groupId>httpunit</groupId>
+      <artifactId>httpunit</artifactId>
+      <version>1.7</version>
+    </dependency>
+    <dependency>
+      <groupId>rhino</groupId>
+      <artifactId>rhino</artifactId>
+      <version>1.5R4.1</version>
     </dependency>
   </dependencies>
 </project>

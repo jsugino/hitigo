@@ -60,17 +60,18 @@ public class CreateMain
       // バイナリモードに設定
       ftpclient.setFileType(FTP.BINARY_FILE_TYPE);
 
-      // クロール＆ファイル生成
-      byte data[][] = createPage1();
+      for ( int year = 2000; year <= 2007; ++year ) {
+	// クロール＆ファイル生成
+	byte data[][] = createPage1(year);
 
-      // ファイル出力
-      if ( !ftpclient.storeFile(folder+"/igo-1996a.html",new ByteArrayInputStream(data[0])) ) {
-	throw new IOException("store file failure : igo-1996a.html");
+	// ファイル出力
+	if ( !ftpclient.storeFile(folder+"/igo-"+year+"a.html",new ByteArrayInputStream(data[0])) ) {
+	  throw new IOException("store file failure : igo-"+year+"a.html");
+	}
+	if ( !ftpclient.storeFile(folder+"/igo-"+year+"b.html",new ByteArrayInputStream(data[1])) ) {
+	  throw new IOException("store file failure : igo-"+year+"b.html");
+	}
       }
-      if ( !ftpclient.storeFile(folder+"/igo-1996b.html",new ByteArrayInputStream(data[1])) ) {
-	throw new IOException("store file failure : igo-1996b.html");
-      }
-
       // 終了処理
       ftpclient.logout();
       ftpclient.disconnect();
@@ -82,7 +83,7 @@ public class CreateMain
     }
   }
 
-  public static byte[][] createPage1()
+  public static byte[][] createPage1( int year )
   throws IOException, SAXException
   {
     HttpUnitOptions.setScriptingEnabled(false);
@@ -98,7 +99,7 @@ public class CreateMain
     WebRequest request;
     WebResponse response;
 
-    request = new GetMethodWebRequest("http://www.hitachi.co.jp/Sp/tsumego/past/1996.html");
+    request = new GetMethodWebRequest("http://www.hitachi.co.jp/Sp/tsumego/past/"+year+".html");
     response = wc.getResponse(request);
 
     WebTable table = response.getTables()[2];
@@ -106,13 +107,13 @@ public class CreateMain
     int rows = table.getRowCount();
     int cols = table.getColumnCount();
     out1.println("<HTML>");
-    out1.println("<TITLE>1996年 初級</TITLE>");
+    out1.println("<TITLE>"+year+"年 初級</TITLE>");
     out1.println("<HEAD>");
     out1.println("<meta name=viewport content=\"width=300\">");
     out1.println("</HEAD>");
     out1.println("<BODY>");
     out2.println("<HTML>");
-    out2.println("<TITLE>1996年 中級</TITLE>");
+    out2.println("<TITLE>"+year+"年 中級</TITLE>");
     out2.println("<HEAD>");
     out2.println("<meta name=viewport content=\"width=300\">");
     out2.println("</HEAD>");
@@ -120,21 +121,25 @@ public class CreateMain
     for ( int i = 0; i < rows; ++i ) {
       for ( int j = 0; j < cols; ++j ) {
 	TableCell cell = table.getTableCell(i,j);
+	out1.println("<hr size=5 noshade>");
+	out2.println("<hr size=5 noshade>");
 	for ( String type : new String[] { "問題", "答え" } ) {
 	  WebLink link = cell.getLinkWith(type);
+	  if ( link == null ) break;
 	  request = link.getRequest();
 	  response = wc.getResponse(request);
 	  lastPage = response.getText();
 	  HTMLElement elems[] = response.getElementsByTagName("STRONG");
 	  out1.println("<strong>"+type+" "+elems[0].getText()+"</strong>");
 	  out2.println("<strong>"+type+" "+elems[0].getText()+"</strong>");
+	  PrintStream out = out1;
 	  for ( int x = 1; x < elems.length; ++x ) {
 	    System.out.println("page "+i+", "+j+", "+x);
 	    Node node = elems[x].getNode();
 	    StringBuffer strbuf = new StringBuffer();
 	    node = traverseToTag(node,"IMG",strbuf);
 	    String url = node.getAttributes().getNamedItem("src").getNodeValue();
-	    PrintStream out = strbuf.indexOf("初級") > 0 ? out1 : out2;
+	    if ( strbuf.indexOf("中級") > 0 ) out = out2;
 	    out.println("<p>"+strbuf+"</p>");
 	    out.println("<p><img width=280 src=\""+new URL(request.getURL(),url)+"\"></p>");
 	  }

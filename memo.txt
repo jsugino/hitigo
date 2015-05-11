@@ -1,0 +1,25 @@
+2015/05/11
+- 「第２９７回」で、次のエラーが発生した。
+page 12, 3, 4
+page 13, 0, 1
+...
+page 13, 0, 5
+-- response -- start
+java.lang.NullPointerException
+	at mylib.hitigo.CreateMain.createPage1(CreateMain.java:128)
+	at mylib.hitigo.CreateMain.main(CreateMain.java:65)
+	at mylib.hitigo.CreateMainTest.testMain(CreateMainTest.java:29)
+- テーブルがピッタリでない場合の対処が入れることで解消できた。
+- すると、次のエラーが発生した。
+java.lang.ArrayIndexOutOfBoundsException: 0
+	at mylib.hitigo.CreateMain.createPage1(CreateMain.java:133)
+	at mylib.hitigo.CreateMain.main(CreateMain.java:65)
+	at mylib.hitigo.CreateMainTest.testMain(CreateMainTest.java:29)
+page 1, 0, 5
+page 1, 1, 1
+...
+page 1, 1, 4
+-- response -- start
+...
+<title>HITACHI : 第408回問題</title>
+- 408回からフォーマットが大幅に変更になったことが原因

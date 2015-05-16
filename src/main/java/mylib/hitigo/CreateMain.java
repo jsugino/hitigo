@@ -25,7 +25,7 @@ import org.xml.sax.SAXException;
 
 public class CreateMain
 {
-  public static String USERAGENT = "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0";
+  public static final String USERAGENT = "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0";
   public static String lastPage = null;
 
   public static void main( String args[] )
@@ -60,7 +60,7 @@ public class CreateMain
       // タイムスタンプ修正
       ftpclient.setModificationTime(folder+"/igo-top.html",TIMESTAMP);
 
-      for ( int year = 1998; year <= 1998; ++year ) {
+      for ( int year = 1996; year <= 2010; ++year ) {
 	// クロール＆ファイル生成
 	byte data[][] = createPage1(year);
 
@@ -107,6 +107,7 @@ public class CreateMain
 
     request = new GetMethodWebRequest("http://www.hitachi.co.jp/Sp/tsumego/past/"+year+".html");
     response = wc.getResponse(request);
+    lastPage = response.getText();
 
     WebTable table = response.getTables()[2];
     table = table.getTableCell(0,0).getTables()[2];
@@ -137,11 +138,40 @@ public class CreateMain
 	  response = wc.getResponse(request);
 	  lastPage = response.getText();
 	  HTMLElement elems[] = response.getElementsByTagName("STRONG");
+	  if ( elems.length == 0 ) {
+	    // タイトル
+	    elems = response.getElementsByTagName("H1");
+	    String text = textToTag(elems[0].getNode(),"A");
+	    out1.println("<strong>"+text+"</strong>");
+	    out2.println("<strong>"+text+"</strong>");
+
+	    // 中身
+	    elems = response.getElementsByTagName("H2");
+	    Node node = elems[0].getNode();
+	    PrintStream out = out1;
+	    for ( int x = 0; node != null; ++x ) {
+	      System.out.println("[B] "+i+", "+j+", "+type+", "+x);
+	      StringBuffer strbuf = new StringBuffer();
+	      node = traverseToTag(node,"IMG",strbuf,null);
+	      if ( strbuf.indexOf("中級") >= 0 ) out = out2;
+	      String src = node.getAttributes().getNamedItem("src").getNodeValue();
+	      StringBuffer comment = new StringBuffer();
+	      node = traverseToTag(nextNode(node),new String[]{"DIV","SPAN","A"},comment,url);
+	      //node = traverseToTag(nextNode(node),"DIV",strbuf,null);
+	      node = traverseToTag(node,new String[]{"H2","H3"},strbuf,null);
+	      int idx = strbuf.indexOf("ページトップ");
+	      if ( idx > 0 ) strbuf.delete(idx,strbuf.length());
+	      out.println("<p>"+strbuf+"</p>");
+	      out.println("<p><img width=280 src=\""+new URL(url,src)+"\"></p>");
+	      out.println("<p>"+comment+"</p>");
+	    }
+	    continue;
+	  }
 	  out1.println("<strong>"+type+" "+elems[0].getText()+"</strong>");
 	  out2.println("<strong>"+type+" "+elems[0].getText()+"</strong>");
 	  PrintStream out = out1;
 	  for ( int x = 1; x < elems.length; ++x ) {
-	    System.out.println("page "+i+", "+j+", "+x);
+	    System.out.println("[A] "+i+", "+j+", "+type+", "+x);
 	    Node node = elems[x].getNode();
 	    StringBuffer strbuf = new StringBuffer();
 	    node = traverseToTag(node,"IMG",strbuf,url);
@@ -150,7 +180,7 @@ public class CreateMain
 	    out.println("<p>"+strbuf+"</p>");
 	    out.println("<p><img width=280 src=\""+new URL(url,src)+"\"></p>");
 	    strbuf = new StringBuffer();
-	    node = traverseToTag(nextNode(node),"STRONG",strbuf,url);
+	    node = traverseToTag(nextNode(node),new String[]{"STRONG","FONT","A"},strbuf,url);
 	    out.println("<p>"+strbuf+"</p>");
 	  }
 	}
@@ -168,12 +198,30 @@ public class CreateMain
     };
   }
 
+  public static String textToTag( Node node, String tagName )
+  throws MalformedURLException
+  {
+    StringBuffer strbuf = new StringBuffer();
+    traverseToTag(node,tagName,strbuf,null);
+    return strbuf.toString();
+  }
+
   public static Node traverseToTag( Node node, String tagName, StringBuffer strbuf, URL url )
   throws MalformedURLException
   {
-    while ( node != null && !node.getNodeName().equals(tagName) ) {
-      if ( node instanceof Text ) strbuf.append(((Text)node).getData());
-      if ( node.getNodeName().equals("IMG") ) {
+    return traverseToTag(node,new String[]{tagName},strbuf,url);
+  }
+
+  public static Node traverseToTag( Node node, String tagNames[], StringBuffer strbuf, URL url )
+  throws MalformedURLException
+  {
+    while ( node != null ) {
+      String nodeName = node.getNodeName();
+      for ( String tagName : tagNames ) {
+        if ( nodeName.equals(tagName) ) return node;
+      }
+      if ( node instanceof Text ) strbuf.append(((Text)node).getData().replace('\u00a0',' '));
+      if ( url != null && nodeName.equals("IMG") ) {
 	String src = node.getAttributes().getNamedItem("src").getNodeValue();
 	strbuf.append("<IMG src=\"").append(new URL(url,src)).append("\">");
       }

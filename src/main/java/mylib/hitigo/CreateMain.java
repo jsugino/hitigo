@@ -5,10 +5,7 @@ import com.meterware.httpunit.GetMethodWebRequest;
 import com.meterware.httpunit.HTMLElement;
 import com.meterware.httpunit.HttpUnitOptions;
 import com.meterware.httpunit.TableCell;
-import com.meterware.httpunit.TableRow;
-import com.meterware.httpunit.TextBlock;
 import com.meterware.httpunit.WebConversation;
-import com.meterware.httpunit.WebImage;
 import com.meterware.httpunit.WebLink;
 import com.meterware.httpunit.WebRequest;
 import com.meterware.httpunit.WebResponse;
@@ -16,9 +13,8 @@ import com.meterware.httpunit.WebTable;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
+import java.net.MalformedURLException;
 import java.net.URL;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
@@ -35,10 +31,11 @@ public class CreateMain
   public static void main( String args[] )
   {
     try {
-      String server = args[0];
-      String loginid = args[1];
-      String password = args[2];
-      String folder = args[3];
+      final String server = args[0];
+      final String loginid = args[1];
+      final String password = args[2];
+      final String folder = args[3];
+      final String TIMESTAMP = "19950101"+"000000";
 
       // FTPClientの生成
       FTPClient ftpclient = new FTPClient();
@@ -60,17 +57,26 @@ public class CreateMain
       // バイナリモードに設定
       ftpclient.setFileType(FTP.BINARY_FILE_TYPE);
 
-      for ( int year = 2000; year <= 2007; ++year ) {
+      // タイムスタンプ修正
+      ftpclient.setModificationTime(folder+"/igo-top.html",TIMESTAMP);
+
+      for ( int year = 1998; year <= 1998; ++year ) {
 	// クロール＆ファイル生成
 	byte data[][] = createPage1(year);
 
 	// ファイル出力
-	if ( !ftpclient.storeFile(folder+"/igo-"+year+"a.html",new ByteArrayInputStream(data[0])) ) {
-	  throw new IOException("store file failure : igo-"+year+"a.html");
+	String filename;
+	filename = folder+"/igo-"+year+"a.html";
+	if ( !ftpclient.storeFile(filename,new ByteArrayInputStream(data[0])) ) {
+	  throw new IOException("store file failure : "+filename);
 	}
-	if ( !ftpclient.storeFile(folder+"/igo-"+year+"b.html",new ByteArrayInputStream(data[1])) ) {
-	  throw new IOException("store file failure : igo-"+year+"b.html");
+	ftpclient.setModificationTime(filename,TIMESTAMP);
+
+	filename = folder+"/igo-"+year+"b.html";
+	if ( !ftpclient.storeFile(filename,new ByteArrayInputStream(data[1])) ) {
+	  throw new IOException("store file failure : "+filename);
 	}
+	ftpclient.setModificationTime(filename,TIMESTAMP);
       }
       // 終了処理
       ftpclient.logout();
@@ -127,6 +133,7 @@ public class CreateMain
 	  WebLink link = cell.getLinkWith(type);
 	  if ( link == null ) break;
 	  request = link.getRequest();
+	  URL url = request.getURL();
 	  response = wc.getResponse(request);
 	  lastPage = response.getText();
 	  HTMLElement elems[] = response.getElementsByTagName("STRONG");
@@ -137,11 +144,14 @@ public class CreateMain
 	    System.out.println("page "+i+", "+j+", "+x);
 	    Node node = elems[x].getNode();
 	    StringBuffer strbuf = new StringBuffer();
-	    node = traverseToTag(node,"IMG",strbuf);
-	    String url = node.getAttributes().getNamedItem("src").getNodeValue();
+	    node = traverseToTag(node,"IMG",strbuf,url);
+	    String src = node.getAttributes().getNamedItem("src").getNodeValue();
 	    if ( strbuf.indexOf("中級") > 0 ) out = out2;
 	    out.println("<p>"+strbuf+"</p>");
-	    out.println("<p><img width=280 src=\""+new URL(request.getURL(),url)+"\"></p>");
+	    out.println("<p><img width=280 src=\""+new URL(url,src)+"\"></p>");
+	    strbuf = new StringBuffer();
+	    node = traverseToTag(nextNode(node),"STRONG",strbuf,url);
+	    out.println("<p>"+strbuf+"</p>");
 	  }
 	}
       }
@@ -158,18 +168,28 @@ public class CreateMain
     };
   }
 
-  public static Node traverseToTag( Node node, String tagName, StringBuffer strbuf )
+  public static Node traverseToTag( Node node, String tagName, StringBuffer strbuf, URL url )
+  throws MalformedURLException
   {
     while ( node != null && !node.getNodeName().equals(tagName) ) {
       if ( node instanceof Text ) strbuf.append(((Text)node).getData());
-      Node next;
-      if ( (next = node.getFirstChild()) == null ) {
-	while ( node != null && (next = node.getNextSibling()) == null ) {
-	  node = node.getParentNode();
-	}
+      if ( node.getNodeName().equals("IMG") ) {
+	String src = node.getAttributes().getNamedItem("src").getNodeValue();
+	strbuf.append("<IMG src=\"").append(new URL(url,src)).append("\">");
       }
-      node = next;
+      node = nextNode(node);
     }
     return node;
+  }
+
+  public static Node nextNode( Node node )
+  {
+    Node next = node.getFirstChild();
+    if ( next == null ) {
+      while ( node != null && (next = node.getNextSibling()) == null ) {
+	node = node.getParentNode();
+      }
+    }
+    return next;
   }
 }

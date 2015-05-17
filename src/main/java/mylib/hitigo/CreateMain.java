@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Enumeration;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPReply;
@@ -60,7 +61,7 @@ public class CreateMain
       // タイムスタンプ修正
       ftpclient.setModificationTime(folder+"/igo-top.html",TIMESTAMP);
 
-      for ( int year = 1996; year <= 2010; ++year ) {
+      for ( int year = 1996 /*2007*/; year <= 2015 /*2008*/; ++year ) {
 	// クロール＆ファイル生成
 	byte data[][] = createPage1(year);
 
@@ -109,10 +110,7 @@ public class CreateMain
     response = wc.getResponse(request);
     lastPage = response.getText();
 
-    WebTable table = response.getTables()[2];
-    table = table.getTableCell(0,0).getTables()[2];
-    int rows = table.getRowCount();
-    int cols = table.getColumnCount();
+    Enumeration<WebLink[]> linkenum = new MyEnum(response);
     out1.println("<HTML>");
     out1.println("<TITLE>"+year+"年 初級</TITLE>");
     out1.println("<HEAD>");
@@ -125,64 +123,60 @@ public class CreateMain
     out2.println("<meta name=viewport content=\"width=300\">");
     out2.println("</HEAD>");
     out2.println("<BODY>");
-    for ( int i = 0; i < rows; ++i ) {
-      for ( int j = 0; j < cols; ++j ) {
-	TableCell cell = table.getTableCell(i,j);
-	out1.println("<hr size=5 noshade>");
-	out2.println("<hr size=5 noshade>");
-	for ( String type : new String[] { "問題", "答え" } ) {
-	  WebLink link = cell.getLinkWith(type);
-	  if ( link == null ) break;
-	  request = link.getRequest();
-	  URL url = request.getURL();
-	  response = wc.getResponse(request);
-	  lastPage = response.getText();
-	  HTMLElement elems[] = response.getElementsByTagName("STRONG");
-	  if ( elems.length == 0 ) {
-	    // タイトル
-	    elems = response.getElementsByTagName("H1");
-	    String text = textToTag(elems[0].getNode(),"A");
-	    out1.println("<strong>"+text+"</strong>");
-	    out2.println("<strong>"+text+"</strong>");
+    while ( linkenum.hasMoreElements() ) {
+      out1.println("<hr size=5 noshade>");
+      out2.println("<hr size=5 noshade>");
+      for ( WebLink link : linkenum.nextElement() ) {
+	request = link.getRequest();
+	URL url = request.getURL();
+	response = wc.getResponse(request);
+	lastPage = response.getText();
+	HTMLElement elems[] = response.getElementsByTagName("STRONG");
+	if ( elems.length == 0 ) {
+	  // タイトル
+	  elems = response.getElementsByTagName("H1");
+	  String text = textToTag(elems[0].getNode(),"A");
+	  out1.println("<strong>"+text+"</strong>");
+	  out2.println("<strong>"+text+"</strong>");
 
-	    // 中身
-	    elems = response.getElementsByTagName("H2");
-	    Node node = elems[0].getNode();
-	    PrintStream out = out1;
-	    for ( int x = 0; node != null; ++x ) {
-	      System.out.println("[B] "+i+", "+j+", "+type+", "+x);
-	      StringBuffer strbuf = new StringBuffer();
-	      node = traverseToTag(node,"IMG",strbuf,null);
-	      if ( strbuf.indexOf("中級") >= 0 ) out = out2;
-	      String src = node.getAttributes().getNamedItem("src").getNodeValue();
-	      StringBuffer comment = new StringBuffer();
-	      node = traverseToTag(nextNode(node),new String[]{"DIV","SPAN","A"},comment,url);
-	      //node = traverseToTag(nextNode(node),"DIV",strbuf,null);
-	      node = traverseToTag(node,new String[]{"H2","H3"},strbuf,null);
-	      int idx = strbuf.indexOf("ページトップ");
-	      if ( idx > 0 ) strbuf.delete(idx,strbuf.length());
-	      out.println("<p>"+strbuf+"</p>");
-	      out.println("<p><img width=280 src=\""+new URL(url,src)+"\"></p>");
-	      out.println("<p>"+comment+"</p>");
-	    }
-	    continue;
-	  }
-	  out1.println("<strong>"+type+" "+elems[0].getText()+"</strong>");
-	  out2.println("<strong>"+type+" "+elems[0].getText()+"</strong>");
+	  // 中身
+	  elems = response.getElementsByTagName("H2");
+	  Node node = elems[0].getNode();
 	  PrintStream out = out1;
-	  for ( int x = 1; x < elems.length; ++x ) {
-	    System.out.println("[A] "+i+", "+j+", "+type+", "+x);
-	    Node node = elems[x].getNode();
+	  for ( int x = 0; node != null; ++x ) {
+	    System.out.println("[B] "+link.getAttribute("indexstr")+", "+x);
 	    StringBuffer strbuf = new StringBuffer();
-	    node = traverseToTag(node,"IMG",strbuf,url);
+	    node = traverseToTag(node,"IMG",strbuf,null);
+	    if ( strbuf.indexOf("中級") >= 0 ) out = out2;
 	    String src = node.getAttributes().getNamedItem("src").getNodeValue();
-	    if ( strbuf.indexOf("中級") > 0 ) out = out2;
+	    StringBuffer comment = new StringBuffer();
+	    node = traverseToTag(nextNode(node),new String[]{"DIV","SPAN","A"},comment,url);
+	    //node = traverseToTag(nextNode(node),"DIV",strbuf,null);
+	    node = traverseToTag(node,new String[]{"H2","H3"},strbuf,null);
+	    int idx = strbuf.indexOf("ページトップ");
+	    if ( idx > 0 ) strbuf.delete(idx,strbuf.length());
 	    out.println("<p>"+strbuf+"</p>");
 	    out.println("<p><img width=280 src=\""+new URL(url,src)+"\"></p>");
-	    strbuf = new StringBuffer();
-	    node = traverseToTag(nextNode(node),new String[]{"STRONG","FONT","A"},strbuf,url);
-	    out.println("<p>"+strbuf+"</p>");
+	    out.println("<p>"+comment+"</p>");
 	  }
+	  continue;
+	}
+	String title = response.getElementsByTagName("H1")[0].getText();
+	out1.println("<strong>"+title+" "+elems[0].getText()+"</strong>");
+	out2.println("<strong>"+title+" "+elems[0].getText()+"</strong>");
+	PrintStream out = out1;
+	for ( int x = 1; x < elems.length; ++x ) {
+	  System.out.println("[A] "+link.getAttribute("indexstr")+", "+x);
+	  Node node = elems[x].getNode();
+	  StringBuffer strbuf = new StringBuffer();
+	  node = traverseToTag(node,"IMG",strbuf,url);
+	  String src = node.getAttributes().getNamedItem("src").getNodeValue();
+	  if ( strbuf.indexOf("中級") > 0 ) out = out2;
+	  out.println("<p>"+strbuf+"</p>");
+	  out.println("<p><img width=280 src=\""+new URL(url,src)+"\"></p>");
+	  strbuf = new StringBuffer();
+	  node = traverseToTag(nextNode(node),new String[]{"STRONG","FONT","A"},strbuf,url);
+	  out.println("<p>"+strbuf+"</p>");
 	}
       }
     }
@@ -196,6 +190,81 @@ public class CreateMain
       bout1.toByteArray(),
       bout2.toByteArray(),
     };
+  }
+
+  public static class MyEnum implements Enumeration<WebLink[]>
+  {
+    public WebTable table;
+    public int rows;
+    public int cols;
+    public int idxi;
+    public int idxj;
+
+    public WebLink links[];
+    public int idx;
+
+    public MyEnum( WebResponse response )
+    throws SAXException
+    {
+      WebTable tables[] = response.getTables();
+      if ( tables.length >= 2 ) {
+	table = tables[2].getTableCell(0,0).getTables()[2];
+	idxi = 0;
+	idxj = 0;
+	rows = table.getRowCount();
+	cols = table.getColumnCount();
+      } else {
+	table = null;
+	links = response.getLinks();
+	idx = 0;
+	nextTag("問題");
+      }
+    }
+
+    public boolean hasMoreElements()
+    {
+      if ( table != null ) {
+	return (idxi < rows) && (idxj < cols) && (table.getTableCell(idxi,idxj).getLinkWith("問題") != null);
+      } else {
+	return (idx < links.length);
+      }
+    }
+
+    public WebLink[] nextElement()
+    {
+      WebLink ret[] = new WebLink[2];
+      if ( table != null ) {
+	TableCell cell = table.getTableCell(idxi,idxj);
+	for ( int i = 0; i < ret.length; ++i ) {
+	  String type = new String[]{ "問題", "答え" }[i];
+	  ret[i] = cell.getLinkWith(type);
+	  ret[i].setAttribute("indexstr",""+idxi+", "+idxj+", "+type);
+	}
+	if ( ++idxj >= cols ) {
+	  idxj = 0;
+	  ++idxi;
+	}
+      } else {
+	ret[0] = links[idx];
+	ret[0].setAttribute("indexstr",""+idx+", 問題");
+	++idx;
+	nextTag("答え");
+	ret[1] = links[idx];
+	ret[1].setAttribute("indexstr",""+idx+", 答え");
+	++idx;
+	nextTag("問題");
+      }
+      return ret;
+    }
+
+    public void nextTag( String text )
+    {
+      for ( ; idx < links.length; ++idx ) {
+	String str = links[idx].getText();
+	if ( str.indexOf("過去") >= 0 ) continue;
+	if ( str.indexOf(text) >= 0 ) break;
+      }
+    }
   }
 
   public static String textToTag( Node node, String tagName )

@@ -61,7 +61,7 @@ public class CreateMain
       // タイムスタンプ修正
       ftpclient.setModificationTime(folder+"/igo-top.html",TIMESTAMP);
 
-      for ( int year = 1996 /*2007*/; year <= 2015 /*2008*/; ++year ) {
+      for ( int year = 2004 /*1996*/; year <= 2015 /*2005*/; ++year ) {
 	// クロール＆ファイル生成
 	byte data[][] = createPage1(year);
 
@@ -150,14 +150,15 @@ public class CreateMain
 	    if ( strbuf.indexOf("中級") >= 0 ) out = out2;
 	    String src = node.getAttributes().getNamedItem("src").getNodeValue();
 	    StringBuffer comment = new StringBuffer();
-	    node = traverseToTag(nextNode(node),new String[]{"DIV","SPAN","A"},comment,url);
+	    node = traverseToTag(nextNode(node),new String[]{"DIV","SPAN","A","P","TD.sentence-std-go"},comment,url);
 	    //node = traverseToTag(nextNode(node),"DIV",strbuf,null);
-	    node = traverseToTag(node,new String[]{"H2","H3"},strbuf,null);
+	    node = traverseToTag(node,new String[]{"H2","H3","IMG"},strbuf,null);
 	    int idx = strbuf.indexOf("ページトップ");
 	    if ( idx > 0 ) strbuf.delete(idx,strbuf.length());
 	    out.println("<p>"+strbuf+"</p>");
 	    out.println("<p><img width=280 src=\""+new URL(url,src)+"\"></p>");
 	    out.println("<p>"+comment+"</p>");
+	    node = traverseToTag(node,new String[]{"H2","H3"},strbuf,null);
 	  }
 	  continue;
 	}
@@ -287,7 +288,19 @@ public class CreateMain
     while ( node != null ) {
       String nodeName = node.getNodeName();
       for ( String tagName : tagNames ) {
-        if ( nodeName.equals(tagName) ) return node;
+	int idx = tagName.indexOf('.');
+	if ( idx > 0 ) {
+	  if ( node.hasAttributes() ) {
+	    Node val = node.getAttributes().getNamedItem("class");
+	    if ( 
+	      val != null &&
+	      nodeName.equals(tagName.substring(0,idx)) &&
+	      val.getNodeValue().equals(tagName.substring(idx+1))
+	    ) return node;
+	  }
+	} else {
+	  if ( nodeName.equals(tagName) ) return node;
+	}
       }
       if ( node instanceof Text ) strbuf.append(((Text)node).getData().replace('\u00a0',' '));
       if ( url != null && nodeName.equals("IMG") ) {

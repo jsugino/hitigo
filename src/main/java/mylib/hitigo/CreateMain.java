@@ -131,16 +131,14 @@ public class CreateMain
 	URL url = request.getURL();
 	response = wc.getResponse(request);
 	lastPage = response.getText();
-	HTMLElement elems[] = response.getElementsByTagName("STRONG");
-	if ( elems.length == 0 ) {
+	HTMLElement elems[] = response.getElementsByTagName("H2");
+	if ( elems.length > 0 ) {
 	  // タイトル
-	  elems = response.getElementsByTagName("H1");
-	  String text = textToTag(elems[0].getNode(),"A");
+	  String text = textToTag(response.getElementsByTagName("H1")[0].getNode(),"A");
 	  out1.println("<strong>"+text+"</strong>");
 	  out2.println("<strong>"+text+"</strong>");
 
 	  // 中身
-	  elems = response.getElementsByTagName("H2");
 	  Node node = elems[0].getNode();
 	  PrintStream out = out1;
 	  for ( int x = 0; node != null; ++x ) {
@@ -162,6 +160,7 @@ public class CreateMain
 	  }
 	  continue;
 	}
+	elems = response.getElementsByTagName("STRONG");
 	String title = response.getElementsByTagName("H1")[0].getText();
 	out1.println("<strong>"+title+" "+elems[0].getText()+"</strong>");
 	out2.println("<strong>"+title+" "+elems[0].getText()+"</strong>");

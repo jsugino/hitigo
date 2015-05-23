@@ -16,7 +16,7 @@ public class CreateMainTest
     String prop = System.getProperty("server");
     if ( prop == null ) {
       try {
-	byte data[][] = CreateMain.createPage1();
+	byte data[][] = CreateMain.createPage1(1996);
 	System.out.write(data[0]);
 	System.out.write(data[1]);
       } catch ( Exception ex ) {
@@ -28,5 +28,16 @@ public class CreateMainTest
     } else {
       CreateMain.main(prop.split(","));
     }
+  }
+
+  @Test
+  public void testNumber()
+  throws Exception
+  {
+    String str = "第652回 出題（答え）";
+    str = str.replaceAll("[^0-9]","");
+    assertEquals("652",str);
+    int num = Integer.parseInt(str);
+    assertEquals(652,num);
   }
 }

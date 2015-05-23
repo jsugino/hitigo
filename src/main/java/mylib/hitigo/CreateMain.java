@@ -12,6 +12,7 @@ import com.meterware.httpunit.WebResponse;
 import com.meterware.httpunit.WebTable;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.MalformedURLException;
@@ -61,7 +62,9 @@ public class CreateMain
       // タイムスタンプ修正
       ftpclient.setModificationTime(folder+"/igo-top.html",TIMESTAMP);
 
-      for ( int year = 2004 /*1996*/; year <= 2015 /*2005*/; ++year ) {
+
+      new File("target/dump").mkdirs();
+      for ( int year = 1996 /*2008*/; year <= 2015 /*2008*/; ++year ) {
 	// クロール＆ファイル生成
 	byte data[][] = createPage1(year);
 
@@ -106,6 +109,8 @@ public class CreateMain
     WebRequest request;
     WebResponse response;
 
+    PrintStream dumpout = new PrintStream("target/dump/igo"+year+".txt");
+
     request = new GetMethodWebRequest("http://www.hitachi.co.jp/Sp/tsumego/past/"+year+".html");
     response = wc.getResponse(request);
     lastPage = response.getText();
@@ -132,38 +137,45 @@ public class CreateMain
 	response = wc.getResponse(request);
 	lastPage = response.getText();
 	HTMLElement elems[] = response.getElementsByTagName("H2");
+	String title = response.getElementsByTagName("H1")[0].getText();
 	if ( elems.length > 0 ) {
+	  // 問題番号
+	  int probnum = Integer.parseInt(title.replaceAll("[^0-9]",""));
+
 	  // タイトル
-	  String text = textToTag(response.getElementsByTagName("H1")[0].getNode(),"A");
-	  out1.println("<strong>"+text+"</strong>");
-	  out2.println("<strong>"+text+"</strong>");
+	  printTitle(dumpout,out1,out2,title);
 
 	  // 中身
 	  Node node = elems[0].getNode();
 	  PrintStream out = out1;
 	  for ( int x = 0; node != null; ++x ) {
-	    System.out.println("[B] "+link.getAttribute("indexstr")+", "+x);
+	    System.out.println("[B] "+probnum+" "+link.getAttribute("indexstr")+", "+x);
 	    StringBuffer strbuf = new StringBuffer();
 	    node = traverseToTag(node,"IMG",strbuf,null);
+	    if ( strbuf.indexOf("免責事項") >= 0 ) {
+	      node = traverseToTag(node,new String[]{"H2","H3"},strbuf,null);
+	      continue;
+	    }
 	    if ( strbuf.indexOf("中級") >= 0 ) out = out2;
 	    String src = node.getAttributes().getNamedItem("src").getNodeValue();
 	    StringBuffer comment = new StringBuffer();
-	    node = traverseToTag(nextNode(node),new String[]{"DIV","SPAN","A","P","TD.sentence-std-go"},comment,url);
-	    //node = traverseToTag(nextNode(node),"DIV",strbuf,null);
-	    node = traverseToTag(node,new String[]{"H2","H3","IMG"},strbuf,null);
+	    if ( probnum < 652 ) {
+	      node = traverseToTag(nextNode(node),new String[]{"DIV","SPAN","A","P","TD.sentence-std-go"},comment,url);
+	      node = traverseToTag(node,new String[]{"H2","H3","IMG","UL","DIV"},strbuf,null);
+	    } else {
+	      node = traverseToTag(nextNode(node),new String[]{"H2","H3","IMG","UL","DIV"},strbuf,null);
+	      node = traverseToTag(node,new String[]{"UL","DIV"},comment,url);
+	    }
 	    int idx = strbuf.indexOf("ページトップ");
 	    if ( idx > 0 ) strbuf.delete(idx,strbuf.length());
-	    out.println("<p>"+strbuf+"</p>");
-	    out.println("<p><img width=280 src=\""+new URL(url,src)+"\"></p>");
-	    out.println("<p>"+comment+"</p>");
+	    printContent(dumpout,out,strbuf,new URL(url,src),comment);
 	    node = traverseToTag(node,new String[]{"H2","H3"},strbuf,null);
 	  }
 	  continue;
 	}
 	elems = response.getElementsByTagName("STRONG");
-	String title = response.getElementsByTagName("H1")[0].getText();
-	out1.println("<strong>"+title+" "+elems[0].getText()+"</strong>");
-	out2.println("<strong>"+title+" "+elems[0].getText()+"</strong>");
+	title = title+" "+elems[0].getText();
+	printTitle(dumpout,out1,out2,title);
 	PrintStream out = out1;
 	for ( int x = 1; x < elems.length; ++x ) {
 	  System.out.println("[A] "+link.getAttribute("indexstr")+", "+x);
@@ -172,11 +184,9 @@ public class CreateMain
 	  node = traverseToTag(node,"IMG",strbuf,url);
 	  String src = node.getAttributes().getNamedItem("src").getNodeValue();
 	  if ( strbuf.indexOf("中級") > 0 ) out = out2;
-	  out.println("<p>"+strbuf+"</p>");
-	  out.println("<p><img width=280 src=\""+new URL(url,src)+"\"></p>");
-	  strbuf = new StringBuffer();
-	  node = traverseToTag(nextNode(node),new String[]{"STRONG","FONT","A"},strbuf,url);
-	  out.println("<p>"+strbuf+"</p>");
+	  StringBuffer comment = new StringBuffer();
+	  node = traverseToTag(nextNode(node),new String[]{"STRONG","FONT","A"},comment,url);
+	  printContent(dumpout,out,strbuf,new URL(url,src),comment);
 	}
       }
     }
@@ -186,10 +196,28 @@ public class CreateMain
     out2.println("</HTML>");
     out1.close();
     out2.close();
+    dumpout.close();
     return new byte[][]{
       bout1.toByteArray(),
       bout2.toByteArray(),
     };
+  }
+
+  public static void printTitle( PrintStream dumpout, PrintStream out1, PrintStream out2, String title )
+  {
+    dumpout.println(title);
+    out1.println("<strong>"+title+"</strong>");
+    out2.println("<strong>"+title+"</strong>");
+  }
+
+  public static void printContent( PrintStream dumpout, PrintStream out, StringBuffer text, URL image, StringBuffer comment )
+  {
+    dumpout.println(text);
+    dumpout.println(image);
+    dumpout.println(comment);
+    out.println("<p>"+text+"</p>");
+    out.println("<p><img width=280 src=\""+image+"\"></p>");
+    out.println("<p>"+comment+"</p>");
   }
 
   public static class MyEnum implements Enumeration<WebLink[]>

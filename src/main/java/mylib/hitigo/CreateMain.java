@@ -64,7 +64,7 @@ public class CreateMain
 
 
       new File("target/dump").mkdirs();
-      for ( int year = 1996 /*2008*/; year <= 2015 /*2008*/; ++year ) {
+      for ( int year = 1996 /*2010*/; year <= 2015 /*2010*/; ++year ) {
 	// クロール＆ファイル生成
 	byte data[][] = createPage1(year);
 
@@ -149,7 +149,6 @@ public class CreateMain
 	  Node node = elems[0].getNode();
 	  PrintStream out = out1;
 	  for ( int x = 0; node != null; ++x ) {
-	    System.out.println("[B] "+probnum+" "+link.getAttribute("indexstr")+", "+x);
 	    StringBuffer strbuf = new StringBuffer();
 	    node = traverseToTag(node,"IMG",strbuf,null);
 	    if ( strbuf.indexOf("免責事項") >= 0 ) {
@@ -160,16 +159,18 @@ public class CreateMain
 	    String src = node.getAttributes().getNamedItem("src").getNodeValue();
 	    StringBuffer comment = new StringBuffer();
 	    if ( probnum < 652 ) {
+	      System.out.println("[B1] "+probnum+" "+link.getAttribute("indexstr")+", "+x);
 	      node = traverseToTag(nextNode(node),new String[]{"DIV","SPAN","A","P","TD.sentence-std-go"},comment,url);
 	      node = traverseToTag(node,new String[]{"H2","H3","IMG","UL","DIV"},strbuf,null);
 	    } else {
+	      System.out.println("[B2] "+probnum+" "+link.getAttribute("indexstr")+", "+x);
 	      node = traverseToTag(nextNode(node),new String[]{"H2","H3","IMG","UL","DIV"},strbuf,null);
 	      node = traverseToTag(node,new String[]{"UL","DIV"},comment,url);
 	    }
 	    int idx = strbuf.indexOf("ページトップ");
 	    if ( idx > 0 ) strbuf.delete(idx,strbuf.length());
 	    printContent(dumpout,out,strbuf,new URL(url,src),comment);
-	    node = traverseToTag(node,new String[]{"H2","H3"},strbuf,null);
+	    node = traverseToTag(node,new String[]{"H2","H3","STRONG"},strbuf,null);
 	  }
 	  continue;
 	}
@@ -205,7 +206,7 @@ public class CreateMain
 
   public static void printTitle( PrintStream dumpout, PrintStream out1, PrintStream out2, String title )
   {
-    dumpout.println(title);
+    dumpout.println("####"+title);
     out1.println("<strong>"+title+"</strong>");
     out2.println("<strong>"+title+"</strong>");
   }

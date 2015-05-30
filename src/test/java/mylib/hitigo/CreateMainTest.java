@@ -26,7 +26,8 @@ public class CreateMainTest
 	throw ex;
       }
     } else {
-      CreateMain.main(prop.split(","));
+      //CreateMain.main(prop.split(","));
+      CrawlMain.main(prop.split(","));
     }
   }
 

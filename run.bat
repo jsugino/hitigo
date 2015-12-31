@@ -2,7 +2,7 @@
 
 setlocal
 
-set VER=0.0.1
+set VER=0.0.2
 
 if "%1"=="" goto NEXT
 if "%1"=="latest" goto NEXT
@@ -13,4 +13,5 @@ set CLS=%HOMEDRIVE%%HOMEPATH%\.m2\repository\mylib\hitigo\hitigo\%VER%\hitigo-%V
 
 echo %CLS%
 
-"%JAVA_HOME%\bin\java.exe" -jar "%CLS%" info.property %2 %3 %4 %5 %6 %7 %8
+"%JAVA_HOME%\bin\java.exe" -jar "%CLS%" %2 %3 %4 %5 %6 %7 %8
+pause

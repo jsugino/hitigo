@@ -4,7 +4,7 @@
 
   <groupId>mylib.hitigo</groupId>
   <artifactId>hitigo</artifactId>
-  <version>0.0.1</version>
+  <version>0.0.2</version>
   <packaging>jar</packaging>
 
   <name>kakeibo</name>
@@ -38,7 +38,7 @@
 	  <archive>
 	    <manifest>
 	      <!-- main method name has to be specified -->
-	      <mainClass>mylib.hitigo.CreateMain</mainClass>
+	      <mainClass>mylib.hitigo.CrawlMain</mainClass>
 	    </manifest>
 	  </archive>
 	</configuration>

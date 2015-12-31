@@ -14,30 +14,36 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Enumeration;
-import org.apache.commons.net.ftp.FTP;
-import org.apache.commons.net.ftp.FTPClient;
-import org.apache.commons.net.ftp.FTPReply;
 import org.w3c.dom.Node;
 import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
 
 public class CrawlMain
 {
-  public static final String TIMESTAMP = "19950101"+"000000";
+  public static final long TIMESTAMP = 365243L*(1995-1700)*24*3600; // 1995/01/01;
   public static final String USERAGENT = "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0";
   public static String lastPage = null;
+
+  // 必要に応じて、次のパラメータを変更する
+  public static final int YEAR_START = 2015; // クローリングする年(開始)(指定値も含む)
+  public static final int YEAR_END   = 2015; // クローリングする年(終了)(指定値も含む)
+  public static final int PROB_START = 1026; // 問題番号(開始)(指定値も含む)
+  public static final int PROB_END   = 1500; // 問題番号(終了)(指定値も含む)
+  public static final String CACHE_FOLDER = "/inetpub/wwwroot/hitigo/dump"; // クロールした結果の保存先
+  public static final String PAGE_FOLDER  = "/inetpub/wwwroot/hitigo"; // HTMLファイルの出力先
 
   public static void main( String args[] )
   {
     try {
-      for ( int year = 1996 /*2010*/; year <= 2015 /*2010*/; ++year ) {
-	//crawlPage(year);
+      for ( int year = YEAR_START; year <= YEAR_END; ++year ) {
+	crawlPage(year);
       }
     } catch ( Exception ex ) {
       System.out.println("-- response -- start");
@@ -46,13 +52,29 @@ public class CrawlMain
       ex.printStackTrace();
     }
 
+    /**
+    * データ構造
+    * for ( i = 0; i < probnum; i += 2 ) {
+    *   // data[counts[i+0] .. counts[i+1]] : 初級のデータ
+    *   j = counts[i];
+    *   data[j] : タイトル
+    *   for ( j += 1; j < counts[i+1]; j += 3 ) {
+    *     data[j+1] : コメント
+    *     data[i+2] : イメージURL
+    *     data[j+3] : イメージコメント
+    *   }
+    *   // data[counts[i+1] .. counts[i+2]] : 中級のデータ
+    *   // (同上)
+    * }
+    **/
     String data[] = new String[30000];
     int counts[] = new int[3000];
     int probnum = 0;
     int total = 0;
+    // データの読み込み
     try {
       for ( int year = 1996; year <= 2015; ++year ) {
-	BufferedReader in = new BufferedReader(new FileReader("target/dump/igo"+year+".txt"));
+	BufferedReader in = new BufferedReader(new FileReader(CACHE_FOLDER+"/igo"+year+".txt"));
 	String line;
 	int mode = 0;
 	while ( (line = in.readLine()) != null ) {
@@ -87,6 +109,7 @@ public class CrawlMain
       counts[probnum] = total;
 
       // パラメータ
+      /*
       final String server = args[0];
       final String loginid = args[1];
       final String password = args[2];
@@ -111,21 +134,40 @@ public class CrawlMain
 
       // バイナリモードに設定
       ftpclient.setFileType(FTP.BINARY_FILE_TYPE);
+      */
 
       // タイムスタンプ修正
-      ftpclient.setModificationTime(folder+"/igo-top.html",TIMESTAMP);
+      //ftpclient.setModificationTime(folder+"/igo-top.html",TIMESTAMP);
+      //new File(PAGE_FOLDER+"/index.html").setLastModified(TIMESTAMP);
 
       /*
       for ( int i = 0; i < probnum; ++i ) {
 	System.out.println(""+i+" "+(counts[i+1]-counts[i])+" "+data[counts[i]]);
       }
       */
-      for ( int i = 0; i < probnum; i += 20 ) {
+      int prob_start = (PROB_START-1)/10*20;
+      int prob_end = (PROB_END+9)/10*20;
+      for ( int i = prob_start; i < Math.min(prob_end,probnum); i += 20 ) {
 	// ページ生成
 	byte pages[][] = createPage(data,counts,i,Math.min(probnum,i+20));
 
 	// ファイル出力
 	String filename;
+	FileOutputStream out;
+
+	filename = PAGE_FOLDER+"/igo-"+(i/2)+"-a.html";
+	System.out.println("output "+filename);
+	out = new FileOutputStream(filename);
+	out.write(pages[0]);
+	out.close();
+
+	filename = PAGE_FOLDER+"/igo-"+(i/2)+"-b.html";
+	System.out.println("output "+filename);
+	out = new FileOutputStream(filename);
+	out.write(pages[1]);
+	out.close();
+
+	/*
 	filename = folder+"/igo-"+(i/2)+"-a.html";
 	if ( !ftpclient.storeFile(filename,new ByteArrayInputStream(pages[0])) ) {
 	  throw new IOException("store file failure : "+filename);
@@ -137,11 +179,14 @@ public class CrawlMain
 	  throw new IOException("store file failure : "+filename);
 	}
 	ftpclient.setModificationTime(filename,TIMESTAMP);
+	*/
       }
 
       // 終了処理
+      /*
       ftpclient.logout();
       ftpclient.disconnect();
+      */
     } catch ( Exception ex ) {
       ex.printStackTrace();
     }
@@ -158,8 +203,20 @@ public class CrawlMain
     WebRequest request;
     WebResponse response;
 
-    new File("target/dump").mkdirs();
-    PrintStream dumpout = new PrintStream("target/dump/igo"+year+".txt");
+    new File(CACHE_FOLDER).mkdirs();
+    int orignum = 0;
+    File origfile = new File(CACHE_FOLDER+"/igo"+year+".txt");
+    if ( origfile.exists() ) {
+      BufferedReader in = new BufferedReader(new FileReader(origfile));
+      String line;
+      while ( (line = in.readLine()) != null ) {
+	if ( line.startsWith("####") ) ++orignum;
+      }
+      in.close();
+      orignum /= 2;
+      System.out.println("had loaded : "+orignum+" (init)");
+    }
+    PrintStream dumpout = new PrintStream(new FileOutputStream(origfile,true));
 
     request = new GetMethodWebRequest("http://www.hitachi.co.jp/Sp/tsumego/past/"+year+".html");
     response = wc.getResponse(request);
@@ -168,6 +225,11 @@ public class CrawlMain
     Enumeration<WebLink[]> linkenum = new MyEnum(response);
     while ( linkenum.hasMoreElements() ) {
       for ( WebLink link : linkenum.nextElement() ) {
+	if ( orignum > 0 ) {
+	  --orignum;
+	  System.out.println("skip : "+orignum+" "+link.getURLString());
+	  break;
+	}
 	request = link.getRequest();
 	URL url = request.getURL();
 	response = wc.getResponse(request);
@@ -360,6 +422,7 @@ public class CrawlMain
     out1.println("<TITLE>初級 "+(from/2+1)+"-"+(to/2)+"</TITLE>");
     out2.println("<TITLE>中級 "+(from/2+1)+"-"+(to/2)+"</TITLE>");
     printBoth(out1,out2,"<HEAD>");
+    printBoth(out1,out2,"<meta http-equiv=\"Content-Type\" content=\"text/html; charset=shift_jis\">");
     printBoth(out1,out2,"<meta name=viewport content=\"width=300\">");
     printBoth(out1,out2,"</HEAD>");
     printBoth(out1,out2,"<BODY>");

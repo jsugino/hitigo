@@ -7,9 +7,10 @@ import org.junit.Test;
 
 public class CreateMainTest
 {
+  // 下記のは古い。もう使用しない。
   // 次のように起動する
   // build -Dserver=server.name,id,pw,folder test
-  @Test
+  //@Test
   public void testMain()
   throws Exception
   {
@@ -29,6 +30,14 @@ public class CreateMainTest
       //CreateMain.main(prop.split(","));
       CrawlMain.main(prop.split(","));
     }
+  }
+
+  // build test で実行するためのもの。
+  //@Test
+  public void testRun()
+  throws Exception
+  {
+    CrawlMain.main(new String[0]);
   }
 
   @Test
